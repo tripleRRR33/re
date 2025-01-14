@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Application de Mémos</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      margin-bottom: 20px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+    }
+
+    .breadcrumb span {
+      margin: 0 5px;
+      color: #6c757d;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 20px;
+    }
+
+    .sidebar {
+      border-right: 1px solid #dee2e6;
+      padding-right: 20px;
+    }
+
+    .folder-list {
+      margin-top: 20px;
+    }
+
+    .folder-item {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .folder-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    .folder-item .folder-icon {
+      margin-right: 10px;
+      color: #3b82f6;
+    }
+
+    .folder-actions {
+      margin-left: auto;
+      display: none;
+    }
+
+    .folder-item:hover .folder-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background-color: #3b82f6;
+      color: white;
+      font-size: 14px;
+    }
+
+    .button:hover {
+      background-color: #2563eb;
+    }
+
+    .button.secondary {
+      background-color: #6c757d;
+    }
+
+    .button.secondary:hover {
+      background-color: #5c636a;
+    }
+
+    .sidebar-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .content {
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+    }
+
+    .memo-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .memo-item {
+      padding: 15px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .memo-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    .memo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .memo-date {
+      font-size: 12px;
+      color: #6c757d;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px 4px 0 0;
+    }
+
+    .editor-content {
+      min-height: 400px;
+      border: 1px solid #dee2e6;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      padding: 20px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-content {
+      position: relative;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="breadcrumb">
+      <a href="#" onclick="navigateHome()">Accueil</a>
+      <span id="currentPath"></span>
+    </div>
+
+    <div class="main-content">
+      <div class="sidebar">
+        <div class="sidebar-buttons">
+          <button class="button" onclick="showNewFolderModal()">
+            <i class="fas fa-folder-plus"></i> Nouveau Dossier
+          </button>
+          <button class="button" onclick="showNewMemoModal()">
+            <i class="fas fa-plus"></i> Nouveau Mémo
+          </button>
+        </div>
+        <div class="folder-list" id="folderList">
+          <!-- Les dossiers seront générés ici -->
+        </div>
+      </div>
+
+      <div class="content">
+        <div id="memoList" class="memo-list">
+          <!-- Les mémos seront générés ici -->
+        </div>
+        <div id="memoEditor" style="display: none;">
+          <textarea id="editor"></textarea>
+          <div class="editor-actions" style="margin-top: 20px; text-align: right;">
+            <button class="button secondary" onclick="cancelEdit()">Annuler</button>
+            <button class="button" onclick="saveMemo()">Enregistrer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal pour nouveau dossier -->
+  <div id="newFolderModal" class="modal">
+    <div class="modal-content">
+      <h2>Nouveau Dossier</h2>
+      <input type="text" id="newFolderName" placeholder="Nom du dossier" style="width: 100%; margin: 20px 0;">
+      <button class="button" onclick="createFolder()">Créer</button>
+      <button class="button secondary" onclick="closeModal('newFolderModal')">Annuler</button>
+    </div>
+  </div>
+
+  <script>
+    // Configuration de TinyMCE
+    tinymce.init({
+      selector: '#editor',
+      plugins: 'lists link image table code help wordcount',
+      toolbar: 'undo redo | styles | bold italic | alignleft aligncenter alignright alignjustify | outdent indent | link image | table',
+      height: 400,
+      menubar: false
+    });
+
+    // État de l'application
+    let state = {
+      folders: [
+        { id: 'root', name: 'Accueil', parentId: null }
+      ],
+      memos: [],
+      currentPath: ['root'],
+      currentFolder: 'root'
+    };
+
+    // Fonctions de gestion des dossiers
+    function showNewFolderModal() {
+      document.getElementById('newFolderModal').style.display = 'block';
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+
+    function createFolder() {
+      const name = document.getElementById('newFolderName').value.trim();
+      if (name) {
+        const newFolder = {
+          id: Date.now().toString(),
+          name: name,
+          parentId: state.currentFolder
+        };
+        state.folders.push(newFolder);
+        updateUI();
+        closeModal('newFolderModal');
+        document.getElementById('newFolderName').value = '';
+      }
+    }
+
+    function navigateToFolder(folderId) {
+      const folder = state.folders.find(f => f.id === folderId);
+      if (folder) {
+        state.currentFolder = folderId;
+        updatePath(folderId);
+        updateUI();
+      }
+    }
+
+    function updatePath(folderId) {
+      const path = [];
+      let currentId = folderId;
+      
+      while (currentId) {
+        const folder = state.folders.find(f => f.id === currentId);
+        if (folder) {
+          path.unshift(folder);
+          currentId = folder.parentId;
+        } else {
+          break;
+        }
+      }
+      
+      state.currentPath = path;
+      updateBreadcrumb();
+    }
+
+    // Fonctions de gestion des mémos
+    function showNewMemoModal() {
+      document.getElementById('memoList').style.display = 'none';
+      document.getElementById('memoEditor').style.display = 'block';
+      tinymce.get('editor').setContent('');
+    }
+
+    function cancelEdit() {
+      document.getElementById('memoList').style.display = 'grid';
+      document.getElementById('memoEditor').style.display = 'none';
+    }
+
+    function saveMemo() {
+      const content = tinymce.get('editor').getContent();
+      if (content) {
+        const newMemo = {
+          id: Date.now().toString(),
+          content: content,
+          folderId: state.currentFolder,
+          date: new Date()
+        };
+        state.memos.push(newMemo);
+        updateUI();
+        cancelEdit();
+      }
+    }
+
+    // Fonctions d'interface utilisateur
+    function updateUI() {
+      updateFolderList();
+      updateMemoList();
+    }
+
+    function updateBreadcrumb() {
+      const path = state.currentPath.map(folder => folder.name).join(' > ');
+      document.getElementById('currentPath').textContent = path ? ` > ${path}` : '';
+    }
+
+    function updateFolderList() {
+      const folderList = document.getElementById('folderList');
+      folderList.innerHTML = '';
+      
+      const currentFolders = state.folders.filter(f => f.parentId === state.currentFolder);
+      
+      currentFolders.forEach(folder => {
+        const folderElement = document.createElement('div');
+        folderElement.className = 'folder-item';
+        folderElement.innerHTML = `
+          <span class="folder-icon">📁</span>
+          <span>${folder.name}</span>
+          <div class="folder-actions">
+            <button class="button secondary" onclick="renameFolder('${folder.id}')">✎</button>
+            <button class="button secondary" onclick="deleteFolder('${folder.id}')">🗑</button>
+          </div>
+        `;
+        folderElement.onclick = (e) => {
+          if (!e.target.matches('button')) {
+            navigateToFolder(folder.id);
+          }
+        };
+        folderList.appendChild(folderElement);
+      });
+    }
+
+    function updateMemoList() {
+      const memoList = document.getElementById('memoList');
+      memoList.innerHTML = '';
+      
+      const currentMemos = state.memos.filter(m => m.folderId === state.currentFolder);
+      
+      currentMemos.forEach(memo => {
+        const memoElement = document.createElement('div');
+        memoElement.className = 'memo-item';
+        memoElement.innerHTML = `
+          <div class="memo-header">
+            <div class="memo-content">${memo.content}</div>
+            <div class="memo-actions">
+              <button class="button secondary" onclick="editMemo('${memo.id}')">✎</button>
+              <button class="button secondary" onclick="deleteMemo('${memo.id}')">🗑</button>
+            </div>
+          </div>
+          <div class="memo-date">${new Date(memo.date).toLocaleDateString()}</div>
+        `;
+        memoList.appendChild(memoElement);
+      });
+    }
+
+    // Initialisation
+    window.onload = function() {
+      updateUI();
+    };
+  </script>
+</body>
+</html>
